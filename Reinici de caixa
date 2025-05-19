@@ -1,0 +1,36 @@
+Reinicar Caixa Basic Basic
+
+using UnityEngine;
+
+public class Caja : MonoBehaviour
+{
+    private Vector3 posicionInicial;
+    private Quaternion rotacionInicial;
+
+    private void Start()
+    {
+        posicionInicial = transform.position;
+        rotacionInicial = transform.rotation;
+    }
+
+    public void ResetearCaja()
+    {
+        transform.position = posicionInicial;
+        transform.rotation = rotacionInicial;
+
+        Rigidbody rb = GetComponent<Rigidbody>();
+        if (rb != null)
+        {
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+        }
+
+        Debug.Log("Caja reiniciada");
+    }
+
+    public void Entregar()
+    {
+        Destroy(gameObject); // o setActive(false) si prefieres ocultarla
+        Debug.Log("Caja entregada");
+    }
+}
