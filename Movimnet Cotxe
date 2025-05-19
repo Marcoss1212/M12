@@ -1,0 +1,30 @@
+Moviment Basic de un cotxe, amb movimenr de vectors (coordenadas)
+
+using UnityEngine;
+
+public class MovimientoCoche : MonoBehaviour
+{
+    [SerializeField] private Vector3 puntoA;
+    [SerializeField] private Vector3 puntoB;
+    [SerializeField] private float velocidad = 5f;
+
+    private Vector3 destinoActual;
+
+    void Start()
+    {
+        destinoActual = puntoB;
+    }
+
+    void Update()
+    {
+        transform.position = Vector3.MoveTowards(transform.position, destinoActual, velocidad * Time.deltaTime);
+
+        if (Vector3.Distance(transform.position, destinoActual) < 0.1f)
+        {
+            destinoActual = (destinoActual == puntoA) ? puntoB : puntoA;
+        }
+    }
+}
+
+
+
