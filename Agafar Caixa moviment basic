@@ -1,0 +1,177 @@
+Moviment Baisc de agafar objectes amb les lletres e (per agafar) i q (per tirar)
+
+using UnityEngine;
+
+public class OtrasManosSinCamion : MonoBehaviour
+{
+    [Header("Referencias")]
+    public Transform handPoint; // Punto donde se sujetará la caja
+    public KeyCode pickupKey = KeyCode.E;
+    public KeyCode dropKey = KeyCode.Q;
+
+    [Header("Partícules al soltar")] 
+    [SerializeField] private GameObject smokePrefab; 
+
+    [Header("Configuración")]
+    public float pickupRange = 2f;
+    public LayerMask pickupLayer;
+
+    [Header("Debug")]
+    [SerializeField] private GameObject currentObject;
+    public bool TieneCaja => currentObject != null;
+
+    private Vector3 escalaOriginal;
+
+    void Update()
+    {
+        if (Input.GetKeyDown(pickupKey) && !TieneCaja)
+        {
+            TryPickup();
+        }
+
+        if (TieneCaja && Input.GetKeyDown(dropKey))
+        {
+            DropObject();
+        }
+    }
+
+    void TryPickup()
+    {
+        Ray ray = Camera.main.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0));
+        Debug.DrawRay(ray.origin, ray.direction * pickupRange, Color.green, 0.5f);
+
+        if (Physics.Raycast(ray, out RaycastHit hit, pickupRange, pickupLayer))
+        {
+            if (hit.collider.CompareTag("Pickable"))
+            {
+                currentObject = hit.collider.gameObject;
+                SetupPickedObject();
+                Debug.Log("Caja recogida: " + currentObject.name);
+            }
+        }
+    }
+
+    void SetupPickedObject()
+    {
+          Rigidbody rb = currentObject.GetComponent<Rigidbody>();
+    if (rb != null)
+    {
+        rb.linearVelocity = Vector3.zero;
+        rb.angularVelocity = Vector3.zero;
+        rb.isKinematic = true;
+        rb.interpolation = RigidbodyInterpolation.Interpolate;
+    }
+
+    escalaOriginal = currentObject.transform.lossyScale;
+
+    // Ignorar colisiones
+    Collider[] objectColliders = currentObject.GetComponentsInChildren<Collider>();
+    Collider[] playerColliders = GetComponentsInParent<Collider>();
+    foreach (var oc in objectColliders)
+    {
+        foreach (var pc in playerColliders)
+        {
+            Physics.IgnoreCollision(oc, pc, true);
+        }
+    }
+
+    // --- CAMBIOS CLAVE --- //
+    currentObject.transform.SetParent(handPoint);
+    currentObject.transform.localPosition = Vector3.zero; // Posición relativa (0,0,0)
+    currentObject.transform.localRotation = Quaternion.identity; // Rotación neutra
+    // -------------------- //
+
+    FixGlobalScale(currentObject.transform, escalaOriginal);
+    }
+
+    void DropObject()
+    {
+        Rigidbody rb = currentObject.GetComponent<Rigidbody>();
+        if (rb != null)
+        {
+            rb.isKinematic = false;
+            rb.interpolation = RigidbodyInterpolation.None;
+        }
+
+        // Restaurar colisiones
+        Collider[] objectColliders = currentObject.GetComponentsInChildren<Collider>();
+        Collider[] playerColliders = GetComponentsInParent<Collider>();
+
+        foreach (var oc in objectColliders)
+        {
+            foreach (var pc in playerColliders)
+            {
+                Physics.IgnoreCollision(oc, pc, false);
+            }
+        }
+
+        // Soltar objeto quitando padre
+        currentObject.transform.SetParent(null);
+            if (smokePrefab != null)
+    {
+        Vector3 posicioFum = currentObject.transform.position;
+        GameObject instance = Instantiate(smokePrefab, posicioFum, Quaternion.identity);
+
+        // Si el prefab té un ParticleSystem a l'arrel, el destruïm automàticament 
+        // un cop acabi la durada + lifetime màxim. 
+        ParticleSystem ps = instance.GetComponent<ParticleSystem>();
+        if (ps != null)
+        {
+            float durada = ps.main.duration + ps.main.startLifetime.constantMax;
+            Destroy(instance, durada);
+        }
+        else
+        {
+            // Si no té ParticleSystem a l'arrel, el destruirà als 5 segons per seguretat
+            Destroy(instance, 5f);
+        }
+    }
+
+        // Elevar un poco para que no se hunda en el suelo
+        Vector3 pos = currentObject.transform.position;
+        pos.y += 0.5f;
+        currentObject.transform.position = pos;
+
+        // Restaurar escala original
+        FixGlobalScale(currentObject.transform, escalaOriginal);
+
+        currentObject = null;
+        Debug.Log("Caja soltada");
+    }
+
+    // Método para mantener la escala global correcta
+    void FixGlobalScale(Transform target, Vector3 desiredGlobalScale)
+    {
+        Vector3 parentScale = Vector3.one;
+        if (target.parent != null)
+            parentScale = target.parent.lossyScale;
+
+        target.localScale = new Vector3(
+            desiredGlobalScale.x / parentScale.x,
+            desiredGlobalScale.y / parentScale.y,
+            desiredGlobalScale.z / parentScale.z);
+    }
+
+    void OnDrawGizmosSelected()
+    {
+        Gizmos.color = Color.cyan;
+        if (Camera.main != null)
+            Gizmos.DrawRay(Camera.main.transform.position,
+                          Camera.main.transform.forward * pickupRange);
+    }
+
+private void OnCollisionEnter(Collision collision)
+{
+    if (collision.gameObject.CompareTag("Coche") && TieneCaja)
+    {
+        var caja = currentObject.GetComponent<Caja>(); // Asegúrate de que este es el nombre correcto del script que lleva la caja
+        if (caja != null)
+        {
+            caja.ResetearCaja();
+        }
+
+        DropObject(); // Suelta la caja después de resetearla
+    }
+}
+
+}
