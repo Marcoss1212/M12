@@ -1,0 +1,117 @@
+Player Movement basico basico para el movimiento del personaje
+
+using UnityEngine;
+
+public class PlayerMovement : MonoBehaviour
+{
+    [Header("Movimiento")]
+    [SerializeField] private float velocidadMovimiento = 5f;
+    [SerializeField] private float velocidadSprint = 9f;
+    [SerializeField] private float fuerzaSalto = 8f;
+    [SerializeField] private float gravedad = 20f;
+
+    [Header("Stamina")]
+    [SerializeField] private float staminaMax = 5f;
+    [SerializeField] private float staminaRecuperacion = 2f;
+    [SerializeField] private float staminaGasto = 1.5f;
+    private float staminaActual;
+
+    [Header("Rotación")]
+    [SerializeField] private float velocidadRotacion = 2f;
+
+    [Header("Referencias")]
+    [SerializeField] private CharacterController characterController;
+    [SerializeField] private Transform transformPersonaje;
+    [SerializeField] private Camera camaraPersonaje;
+
+    private Vector3 movimiento;
+    private float rotacionX = 0f;
+    private float velocityY = 0f;
+
+    void Start()
+    {
+        staminaActual = staminaMax;
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible   = false;
+        
+    }
+
+    void Update()
+    {
+        MovimientoJugador();
+        MovimientoCamara();
+        RecuperarStamina();
+    }
+
+    void MovimientoJugador()
+    {
+        float movX = Input.GetAxis("Horizontal");
+        float movZ = Input.GetAxis("Vertical");
+
+        Vector3 direccion = transformPersonaje.right * movX + transformPersonaje.forward * movZ;
+        direccion.Normalize();
+
+        bool estaCorriendo = Input.GetKey(KeyCode.LeftShift) && movZ > 0 && staminaActual > 0f;
+
+        float velocidad = estaCorriendo ? velocidadSprint : velocidadMovimiento;
+
+        if (estaCorriendo)
+        {
+            staminaActual -= staminaGasto * Time.deltaTime;
+            staminaActual = Mathf.Clamp(staminaActual, 0, staminaMax);
+        }
+
+        if (characterController.isGrounded)
+        {
+            velocityY = -1f;
+            if (Input.GetButtonDown("Jump"))
+            {
+                velocityY = fuerzaSalto;
+            }
+        }
+        else
+        {
+            velocityY -= gravedad * Time.deltaTime;
+        }
+
+        Vector3 movimientoFinal = direccion * velocidad;
+        movimientoFinal.y = velocityY;
+
+        characterController.Move(movimientoFinal * Time.deltaTime);
+    }
+
+    void MovimientoCamara()
+    {
+    float ratonX = Input.GetAxis("Mouse X") * velocidadRotacion;
+    float ratonY = Input.GetAxis("Mouse Y") * velocidadRotacion;
+
+    rotacionX -= ratonY;
+    rotacionX = Mathf.Clamp(rotacionX, -90f, 90f);
+
+    // Solo aplica rotación vertical a la cámara
+    camaraPersonaje.transform.localRotation = Quaternion.Euler(rotacionX, 0f, 0f);
+    }
+
+    void RecuperarStamina()
+    {
+        bool estaCorriendo = Input.GetKey(KeyCode.LeftShift) && Input.GetAxis("Vertical") > 0;
+        if (!estaCorriendo && staminaActual < staminaMax)
+        {
+            staminaActual += staminaRecuperacion * Time.deltaTime;
+            staminaActual = Mathf.Clamp(staminaActual, 0, staminaMax);
+        }
+    }
+
+    public float ObtenerStaminaActual()
+    {
+        return staminaActual;
+    }
+
+    public float ObtenerStaminaMax()
+    {
+        return staminaMax;      
+    }
+}
+
+
+(script para controlar el movimiento de un jugador en primera persona en Unity, incluyendo salto, sprint (correr) y gestión de stamina (resistencia))
